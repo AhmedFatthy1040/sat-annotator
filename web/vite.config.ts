@@ -18,12 +18,27 @@ export default defineConfig(({ mode }) => {
           target: API_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
-          rewrite: (path: string) => path.replace(new RegExp(`^${API_BASE}`), ''),
+          configure: (proxy) => {
+            proxy.on('error', (err) => {
+              // Silence specific errors to prevent console spam
+              if (!err.message?.includes('ECONNREFUSED')) {
+                console.error('Proxy error:', err);
+              }
+            });
+          }
         },
         '/uploads': {
           target: API_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
+          configure: (proxy) => {
+            proxy.on('error', (err) => {
+              // Silence specific errors to prevent console spam
+              if (!err.message?.includes('ECONNREFUSED')) {
+                console.error('Proxy error:', err);
+              }
+            });
+          }
         },
       },
     },
