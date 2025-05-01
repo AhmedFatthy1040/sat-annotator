@@ -1,4 +1,3 @@
-// Types
 export interface Image {
   image_id: string; // Changed from number to string for session-based UUIDs
   file_name: string;
@@ -7,6 +6,8 @@ export interface Image {
   source?: string;
   capture_date: string;
   created_at: string;
+  width?: number;
+  height?: number;
 }
 
 export interface UploadResponse {
@@ -28,16 +29,18 @@ export interface SegmentationResponse {
   cached?: boolean; // Indicates if the segmentation was retrieved from cache
 }
 
-// API URL configuration
-// Use environment variable with fallback
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-const API_URL = `${API_BASE_URL}/api`;
+export interface SessionInfo {
+  session_id: string;
+  created_at: string;
+  image_count: number;
+  annotation_count: number;
+}
 
 // API methods
 export const api = {
   // Fetch all images
   async getImages(): Promise<Image[]> {
-    const response = await fetch(`${API_URL}/images/`, {
+    const response = await fetch(`/api/images/`, {
       credentials: 'include', // Include cookies in the request
     });
     if (!response.ok) {
@@ -48,7 +51,7 @@ export const api = {
 
   // Fetch a single image by ID
   async getImage(id: string): Promise<Image> {
-    const response = await fetch(`${API_URL}/images/${id}/`, {
+    const response = await fetch(`/api/images/${id}/`, {
       credentials: 'include', // Include cookies in the request
     });
     if (!response.ok) {
@@ -56,46 +59,84 @@ export const api = {
     }
     return response.json();
   },
-    // Upload a new image
+    
+  // Upload a new image
   async uploadImage(file: File): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${API_URL}/upload-image/`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include', // Include cookies in the request
-      // No Content-Type header needed as it's automatically set for FormData
-    });
+    // Add a timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Error uploading image: ${response.statusText}`);
+    try {
+      const response = await fetch(`/api/upload-image/`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Include cookies in the request
+        signal: controller.signal,
+        // No Content-Type header needed as it's automatically set for FormData
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Error uploading image: ${response.statusText}`);
+      }
+      
+      return response.json();    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Upload timed out. Please try again with a smaller file or check your connection.');
+      }
+      throw error;
     }
-    
-    return response.json();
-  },  // Create segmentation from a point
-  async segmentFromPoint(request: SegmentationRequest): Promise<SegmentationResponse> {
-    const response = await fetch(`${API_URL}/segment/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Include cookies in the request
-      body: JSON.stringify(request),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `Error creating segmentation: ${response.statusText}`);
-    }
-    
-    return response.json();
   },
-
-  // Get session info
-  async getSessionInfo(): Promise<{session_id: string, image_count: number, annotation_count: number, created_at: string}> {
-    const response = await fetch(`${API_URL}/session-info/`, {
+    
+  // Delete an image
+  async deleteImage(id: string): Promise<void> {
+    const response = await fetch(`/api/images/${id}/`, {
+      method: 'DELETE',
+      credentials: 'include', // Include cookies in the request
+    });
+    if (!response.ok) {
+      throw new Error(`Error deleting image ${id}: ${response.statusText}`);
+    }
+  },
+    
+  // Perform segmentation on a point in an image
+  async segmentFromPoint(request: SegmentationRequest): Promise<SegmentationResponse> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
+    
+    try {
+      const response = await fetch(`/api/segment/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+        credentials: 'include', // Include cookies in the request
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Error performing segmentation: ${response.statusText}`);
+      }
+      
+      return response.json();    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Segmentation request timed out. Please try again or use manual annotation.');
+      }
+      throw error;
+    }
+  },
+    
+  // Get session information
+  async getSessionInfo(): Promise<SessionInfo> {
+    const response = await fetch(`/api/session-info/`, {
       credentials: 'include', // Include cookies in the request
     });
     if (!response.ok) {
