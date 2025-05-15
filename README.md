@@ -27,7 +27,7 @@ This project is sponsored by the Egyptian Space Agency (EgSA).
 - AI-powered segmentation using Segment Anything Model (SAM)
 - Point-prompt based segmentation
 - Automatic polygon generation from segmentation masks
-- GeoJSON export format support
+- JSON export format with detailed metadata
 
 **Planned:**
 - Multiple prompt types (box, points, text)

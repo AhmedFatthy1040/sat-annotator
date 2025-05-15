@@ -116,6 +116,16 @@ class SessionStore:
             
         return self.sessions[session_id]["annotations"].get(annotation_id)
     
+    def get_annotations_by_image(self, session_id: str, image_id: str) -> List[SessionAnnotation]:
+        """Get all annotations for a specific image"""
+        if session_id not in self.sessions:
+            return []
+        
+        return [
+            annotation for annotation in self.sessions[session_id]["annotations"].values()
+            if annotation.image_id == image_id
+        ]
+    
     def delete_session(self, session_id: str) -> bool:
         """Delete a session and return True if successful"""
         if session_id in self.sessions:

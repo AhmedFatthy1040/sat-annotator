@@ -3,40 +3,76 @@
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  height: auto;
+  overflow-y: visible;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Base styles */
+body, html {
+  min-height: 100%;
+  margin: 0;
+  overflow-y: auto;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Fix for sidebar height */
+.annotation-sidebar-container {
+  height: 100%;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.annotation-sidebar {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* Add styles for sidebar layout container */
+.sidebar-layout {
+  min-height: 650px;
+  overflow: visible;
+  display: flex;
+}
+
+/* Image viewer */
+.image-container {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+canvas.annotation-canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Fix scrolling in image viewer */
+.image-viewer-container {
+  padding-top: 20px;
+  overflow-y: visible;
+  max-height: none;
+}
+
+/* Ensure proper layout for containers */
+.container {
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: 50px;
+}
+
+/* Media queries for responsive layout */
+@media (max-width: 768px) {
+  .sidebar-layout {
+    flex-direction: column;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .annotation-sidebar-container {
+    width: 100%;
+    min-height: auto;
+    max-height: 300px;
+    overflow-y: auto;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  
+  body, html {
+    overflow-x: hidden;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
