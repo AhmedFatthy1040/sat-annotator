@@ -62,11 +62,10 @@ async def segment_from_point(
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             annotation_dir = Path(os.path.join(base_dir, "annotations"))
         annotation_dir.mkdir(exist_ok=True)
-        
-        # Get the image path from the session store
+          # Get the image path from the session store
         stored_path = image.file_path
         
-        # Construct image path
+        # Construct image path - handle processed TIFF files
         if in_docker:
             if stored_path.startswith("uploads/"):
                 image_path = "/app/" + stored_path
@@ -78,9 +77,23 @@ async def segment_from_point(
             else:
                 image_path = stored_path
         
-        # Check if file exists
+        # Check if file exists, if not try to find processed version
         if not os.path.exists(image_path):
-            raise FileNotFoundError(f"Image file not found at {image_path}")
+            # For TIFF files, try to find the processed version
+            if stored_path.endswith(('.tif', '.tiff')):
+                processed_filename = f"processed_{Path(stored_path).stem}.png"
+                if in_docker:
+                    processed_path = f"/app/uploads/processed/{processed_filename}"
+                else:
+                    processed_path = os.path.join(base_dir, "uploads", "processed", processed_filename)
+                
+                if os.path.exists(processed_path):
+                    image_path = processed_path
+                    logger.info(f"Using processed TIFF version: {image_path}")
+                else:
+                    raise FileNotFoundError(f"Neither original nor processed image found for {stored_path}")
+            else:
+                raise FileNotFoundError(f"Image file not found at {image_path}")
         
         # Check if this is a new image or one we've already processed
         is_cached = image_path == segmenter.current_image_path and image_path in segmenter.cache

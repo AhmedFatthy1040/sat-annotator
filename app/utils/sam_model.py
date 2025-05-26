@@ -5,6 +5,10 @@ import cv2
 from pathlib import Path
 import os
 from typing import Dict, Tuple, List, Optional
+from PIL import Image
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SAMSegmenter:
     def __init__(self):
@@ -23,8 +27,7 @@ class SAMSegmenter:
         self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
         self.sam.to(device=self.device)
         self.predictor = SamPredictor(self.sam)
-        
-        # Cache for storing image embeddings and masks
+          # Cache for storing image embeddings and masks
         self.cache: Dict[str, Dict] = {}
         self.current_image_path = None
 
@@ -35,9 +38,11 @@ class SAMSegmenter:
             self.current_image_path = image_path
             return self.cache[image_path]['image_size']
         
-        # Load and process the new image
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # Load and process the image with better format support
+        image = self._load_image_safely(image_path)
+        if image is None:
+            raise ValueError(f"Could not load image from {image_path}")
+        
         self.predictor.set_image(image)
         
         # Store in cache
@@ -49,6 +54,69 @@ class SAMSegmenter:
         self.current_image_path = image_path
         
         return image.shape[:2]  # Return height, width
+    
+    def _load_image_safely(self, image_path: str) -> Optional[np.ndarray]:
+        """Load image with fallback methods for different formats"""
+        image_path = Path(image_path)
+        
+        # Check if it's a processed TIFF file
+        if image_path.name.startswith("processed_") and not image_path.exists():
+            # Look for processed version in processed directory
+            processed_dir = image_path.parent / "processed"
+            if processed_dir.exists():
+                processed_files = list(processed_dir.glob(f"processed_{image_path.stem}.*"))
+                if processed_files:
+                    image_path = processed_files[0]
+                    logger.info(f"Using processed TIFF version: {image_path}")
+        
+        # Method 1: Try OpenCV first (fastest for standard formats)
+        try:
+            image = cv2.imread(str(image_path))
+            if image is not None:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                logger.info(f"Loaded image with OpenCV: {image.shape}")
+                return image
+        except Exception as e:
+            logger.warning(f"OpenCV failed to load {image_path}: {e}")
+        
+        # Method 2: Try PIL for better format support
+        try:
+            with Image.open(image_path) as pil_img:
+                # Convert to RGB if needed
+                if pil_img.mode != 'RGB':
+                    if pil_img.mode == 'RGBA':
+                        # Handle transparency by compositing with white background
+                        background = Image.new('RGB', pil_img.size, (255, 255, 255))
+                        background.paste(pil_img, mask=pil_img.split()[3])
+                        pil_img = background
+                    else:
+                        pil_img = pil_img.convert('RGB')
+                
+                # Convert to numpy array
+                image = np.array(pil_img)
+                logger.info(f"Loaded image with PIL: {image.shape}")
+                return image
+        except Exception as e:
+            logger.warning(f"PIL failed to load {image_path}: {e}")
+        
+        # Method 3: Check for processed versions if original TIFF fails
+        if image_path.suffix.lower() in ['.tif', '.tiff']:
+            processed_dir = image_path.parent / "processed"
+            if processed_dir.exists():
+                # Look for processed PNG version
+                processed_png = processed_dir / f"processed_{image_path.stem}.png"
+                if processed_png.exists():
+                    try:
+                        image = cv2.imread(str(processed_png))
+                        if image is not None:
+                            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                            logger.info(f"Loaded processed TIFF version: {image.shape}")
+                            return image
+                    except Exception as e:
+                        logger.warning(f"Failed to load processed version {processed_png}: {e}")
+        
+        logger.error(f"All methods failed to load image: {image_path}")
+        return None
 
     def predict_from_point(self, point_coords, point_labels=None):
         """Generate mask from a point prompt, using cache if available"""

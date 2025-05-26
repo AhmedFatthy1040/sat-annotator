@@ -86,12 +86,17 @@ export const ImageGallery = ({ onSelectImage }: ImageGalleryProps) => {
         <ImageUpload onUploadSuccess={fetchImages} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {images.map((image) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">        {images.map((image) => {
           // Extract filename from file_path - handle both absolute and relative paths
           const filename = image.file_path.split('/').pop();
-          // Use a relative path instead of API_BASE_URL
-          const imageUrl = `${API_BASE}/uploads/${filename}`;
+          
+          // Determine the correct image URL - use processed version if available
+          let imageUrl = `${API_BASE}/uploads/${filename}`;
+          
+          // Check if this is a processed TIFF file path
+          if (image.file_path.includes('processed/')) {
+            imageUrl = `${API_BASE}/${image.file_path}`;
+          }
           
           return (
             <div 

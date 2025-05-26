@@ -28,23 +28,34 @@ async def upload_image(
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="File type not supported. Please upload JPG, PNG, TIFF or GeoTIFF"
-        )
-        
-    # Process and save the file
+        )        # Process and save the file
     try:
         file_info = await save_upload_file(file)
         
         # Save to session store
         session_id = session_manager.session_id
+        
+        # Determine which path to use for annotation workflow
+        annotation_path = file_info.get("processed_path", file_info["path"])
+        
+        # Prepare metadata for TIFF files
+        metadata = None
+        if file_info.get("is_tiff"):
+            metadata = {
+                "is_tiff": True,
+                "original_path": file_info["path"],
+                "web_path": file_info.get("web_path"),
+                "tiff_info": file_info.get("tiff_info", {})
+            }
+        
         session_image = session_store.add_image(
             session_id=session_id,
             file_name=file_info["original_filename"],
-            file_path=file_info["path"],
+            file_path=annotation_path,  # Use processed path for TIFF files
             resolution=file_info["resolution"],
-            source="user_upload"
-        )
-        
-        # Convert SessionImage to the expected Image pydantic model format
+            source="user_upload",
+            metadata=metadata
+        )        # Convert SessionImage to the expected Image pydantic model format
         # Create an Image Pydantic model directly from the SessionImage attributes
         image = Image(
             image_id=session_image.image_id,
@@ -52,6 +63,7 @@ async def upload_image(
             file_path=session_image.file_path,
             resolution=session_image.resolution,
             source=session_image.source,
+            metadata=session_image.metadata,  # Use metadata directly from session_image
             capture_date=session_image.capture_date,
             created_at=session_image.created_at
         )

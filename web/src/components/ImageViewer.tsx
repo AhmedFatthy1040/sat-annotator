@@ -299,11 +299,19 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
         drawManualPolygon(ctx);
       }
     };
-    
-    // Extract filename from file_path - handle both absolute and relative paths
+      // Extract filename from file_path - handle both absolute and relative paths
     const filename = image.file_path.split('/').pop();
+    
+    // Determine the correct image URL - use processed version if available
+    let imageUrl = `/api/uploads/${filename}`;
+    
+    // Check if this is a processed TIFF file path
+    if (image.file_path.includes('processed/')) {
+      imageUrl = `/api/${image.file_path}`;
+    }
+    
     // Use relative URL instead of hardcoded localhost
-    img.src = `/api/uploads/${filename}`;
+    img.src = imageUrl;
     img.crossOrigin = "Anonymous"; // Needed for CORS if your API is on a different domain
     
     img.onerror = () => {

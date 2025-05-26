@@ -53,6 +53,11 @@ app.include_router(annotations.router, prefix="/api", tags=["annotations"])
 # Mount the uploads directory for static file serving
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
+# Mount the processed directory for TIFF processed files
+processed_dir = uploads_dir / "processed"
+processed_dir.mkdir(exist_ok=True)
+app.mount("/uploads/processed", StaticFiles(directory=str(processed_dir)), name="processed")
+
 # Mount frontend if the build directory exists
 if frontend_dir.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")

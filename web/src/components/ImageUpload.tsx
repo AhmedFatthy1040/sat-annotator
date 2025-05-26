@@ -18,18 +18,37 @@ export const ImageUpload = ({ onUploadSuccess }: ImageUploadProps) => {
       setError(null);
     }
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.startsWith('image/')) {
+        // Check for valid image file types including specialized formats
+      const validTypes = [
+        'image/jpeg', 'image/png', 'image/tiff', 'image/tif', 'image/geotiff',
+        'image/webp', 'image/heic', 'image/heif', 'image/jp2', 'image/j2k',
+        'application/octet-stream'  // For various formats that might be sent as binary
+      ];
+      const validExtensions = [
+        '.jpg', '.jpeg', '.png', '.tif', '.tiff', 
+        '.webp', '.heic', '.heif', '.jp2', '.j2k',
+        '.cr2', '.nef', '.arw', '.dng',  // RAW formats
+        '.dcm',  // DICOM
+        '.fits', '.fit',  // FITS astronomy
+        '.nc',  // NetCDF
+        '.h5', '.hdf'  // HDF5
+      ];
+      const fileName = droppedFile.name.toLowerCase();
+      
+      const isValidType = validTypes.includes(droppedFile.type) || 
+                         validExtensions.some(ext => fileName.endsWith(ext));
+      
+      if (isValidType) {
         setFile(droppedFile);
         setError(null);
       } else {
-        setError('Please drop a valid image file');
+        setError('Please drop a valid image file (JPEG, PNG, TIFF, WebP, HEIC, RAW, DICOM, FITS, NetCDF, HDF5)');
       }
     }
   };
@@ -177,7 +196,7 @@ export const ImageUpload = ({ onUploadSuccess }: ImageUploadProps) => {
                 <input
                   type="file"
                   onChange={handleFileChange}
-                  accept="image/jpeg,image/png,image/tiff,image/tif"
+                  accept="image/jpeg,image/png,image/tiff,image/tif,image/geotiff,image/webp,image/heic,image/heif,image/jp2,.tif,.tiff,.jpg,.jpeg,.png,.webp,.heic,.heif,.jp2,.j2k,.cr2,.nef,.arw,.dng,.dcm,.fits,.fit,.nc,.h5,.hdf"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   disabled={isUploading}
                 />
@@ -191,12 +210,20 @@ export const ImageUpload = ({ onUploadSuccess }: ImageUploadProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-blue-800 mb-1">Supported Formats</h4>
+                  <div>                    <h4 className="font-semibold text-blue-800 mb-1">Supported Formats</h4>
                     <p className="text-sm text-blue-700">
-                      JPEG, PNG, TIFF, GeoTIFF files are supported
+                      Standard: JPEG, PNG, TIFF, WebP, HEIC/HEIF, JPEG2000
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      Scientific: NetCDF (.nc), HDF5 (.h5), FITS (.fits)
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      Camera RAW: CR2, NEF, ARW, DNG | Medical: DICOM (.dcm)
                     </p>
                     <p className="text-sm text-blue-600 mt-1">
+                      Specialized formats will be automatically processed for annotation
+                    </p>
+                    <p className="text-sm text-blue-600">
                       Maximum file size: 100MB
                     </p>
                   </div>
