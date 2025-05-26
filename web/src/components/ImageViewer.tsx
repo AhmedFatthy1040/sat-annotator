@@ -859,39 +859,73 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
       "Switched to AI segmentation mode");
     setTimeout(() => setStatusMessage(null), 2000);
   };
-
-  if (loading && !image) return <div className="text-center p-4">Loading image...</div>;
-  
-  if (error) {
+  if (loading && !image) {
     return (
-      <div className="text-center p-4 text-red-600">
-        Error: {error}
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading image...</p>
+        </div>
       </div>
     );
   }
   
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load image</h3>
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+    
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-full flex justify-between items-center mb-2">
-        <div className="flex space-x-2">
-          <button
-            onClick={toggleAnnotationMode}
-            className={`px-3 py-1 rounded text-sm font-medium ${
-              isManualMode 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-            }`}
-          >
-            {isManualMode ? 'Manual Mode' : 'AI Mode'}
-          </button>
+    <div className="h-full flex flex-col">
+      {/* Control Panel */}
+      <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Analysis Mode</h3>
+            </div>
+            
+            <button
+              onClick={toggleAnnotationMode}
+              className={`group relative inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isManualMode 
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl' 
+                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isManualMode ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                )}
+              </svg>
+              {isManualMode ? 'Manual Annotation' : 'AI-Powered Segmentation'}
+            </button>
+          </div>
           
           {isManualMode && (
-            <>
+            <div className="flex items-center space-x-3">
               <button
                 onClick={clearManualAnnotation}
-                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                className="inline-flex items-center px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={manualPoints.length === 0}
               >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
                 Clear Points
               </button>
               
@@ -901,8 +935,11 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
                     setIsPolygonClosed(true);
                     createSegmentationFromManualPoints();
                   }}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                  className="inline-flex items-center px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-sm font-medium transition-colors"
                 >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
                   Complete Polygon
                 </button>
               )}
@@ -916,111 +953,176 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
                       "Editing mode enabled - points will not be auto-synced");
                     setTimeout(() => setStatusMessage(null), 3000);
                   }}
-                  className={`px-3 py-1 rounded text-sm font-medium ${
+                  className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isEditingMode 
-                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                      ? 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200' 
+                      : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
                   }`}
                 >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                   {isEditingMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
-          <div className="text-xs text-gray-500">
-          {isManualMode ? (
-            <span>
-              <strong>Manual Mode{isEditingMode ? ' (Editing)' : ''}:</strong> Click to add points, hover+drag to move points, right-click to delete
-              {isEditingMode && <span className="text-yellow-600 ml-1">Editing mode active - changes won't be reset</span>}
-            </span>
-          ) : (
-            <span>
-              <strong>AI Mode:</strong> Click on an object to segment it automatically
-            </span>
-          )}
+        
+        {/* Instructions */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+          <div className="flex items-start">
+            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="text-sm">
+              {isManualMode ? (
+                <div>
+                  <p className="text-blue-900 font-medium mb-1">Manual Annotation Mode{isEditingMode ? ' (Editing)' : ''}</p>
+                  <p className="text-blue-800">
+                    {manualPoints.length === 0
+                      ? "Click on the image to start creating a polygon outline"
+                      : isPolygonClosed
+                      ? "Polygon completed. Click again to start a new polygon, or use edit mode to modify points."
+                      : manualPoints.length < 3
+                      ? "Add at least 3 points to complete a polygon"
+                      : "Click near the first point or use 'Complete Polygon' button to finish"}
+                  </p>
+                  {isEditingMode && <p className="text-yellow-700 mt-1 text-xs">⚡ Editing mode active - drag points to move, right-click to delete</p>}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-blue-900 font-medium mb-1">AI-Powered Segmentation</p>
+                  <p className="text-blue-800">
+                    Click anywhere on an object in the image to automatically generate precise segmentation boundaries
+                    {hasSegmented && <span className="text-green-700 ml-1">(subsequent clicks will use cached results for faster processing)</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-      
-      <div className="relative border border-gray-300 rounded image-container">
-        <canvas 
-          ref={canvasRef}
-          onClick={handleCanvasClick}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseUp={handleCanvasMouseUp}
-          onContextMenu={handleCanvasRightClick}
-          className={`cursor-${isManualMode ? 'crosshair' : 'pointer'} annotation-canvas`}
-          style={{ maxWidth: '100%', minHeight: '400px' }}
-        />
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="text-white">{hasSegmented ? 'Processing...' : 'Segmenting image (first click may take longer)...'}</div>
-          </div>
-        )}
-      </div>
-      
-      {statusMessage && (
-        <div className={`text-sm ${segmentation?.cached ? 'text-green-600' : 'text-blue-600'} font-medium`}>
-          {statusMessage}
-        </div>
-      )}
-      
-      <div className="text-sm text-gray-600">
-        {isManualMode ? (
-          <span>
-            {manualPoints.length === 0
-              ? "Click to start creating a polygon"
-              : isPolygonClosed
-              ? "Polygon completed. Click again to start a new polygon."
-              : manualPoints.length < 3
-              ? "Add at least 3 points to complete a polygon"
-              : "Click near the first point or use 'Complete Polygon' button to finish"}
-          </span>
-        ) : (
-          <span>
-            Click anywhere on the image to generate segmentation
-            {hasSegmented && (
-              <span className="ml-1 text-green-600">(subsequent clicks will use cached results)</span>
-            )}
-          </span>
-        )}
-      </div>
-        {segmentation && (
-        <div className="bg-gray-100 p-4 rounded w-full max-w-xl">
-          <h3 className="font-bold mb-2">Segmentation Results:</h3>
-          <div className="text-sm">
-            <p>Annotation ID: {segmentation.annotation_id}</p>
-            <p>Polygon points: {segmentation.polygon.length}</p>            <p className="text-purple-600 font-medium">
-              Annotation type: {
-                segmentation.annotation_id?.startsWith('manual-') 
-                  ? 'Manually created' 
-                  : segmentation.annotation_id?.includes('-modified')
-                  ? 'AI-generated (manually modified)'
-                  : 'AI-generated'
-              }
-            </p>
-            {segmentation.cached && !segmentation.annotation_id?.startsWith('manual-') && (
-              <p className="text-green-600 font-medium">Result retrieved from cache</p>
-            )}
-            {selectedObjectType && (
-              <p className="text-blue-600">
-                Object type: {selectedObjectType.startsWith('custom:') ? 
-                  selectedObjectType.substring(7) : selectedObjectType}
-              </p>
-            )}
-          </div>
+
+      {/* Image Canvas Area */}
+      <div className="flex-1 p-6 bg-gray-50/30">
+        <div className="relative bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden h-full">
+          <canvas 
+            ref={canvasRef}
+            onClick={handleCanvasClick}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseDown={handleCanvasMouseDown}
+            onMouseUp={handleCanvasMouseUp}
+            onContextMenu={handleCanvasRightClick}
+            className={`w-full h-full object-contain cursor-${isManualMode ? 'crosshair' : 'pointer'} transition-all duration-200`}
+            style={{ minHeight: '400px' }}
+          />
           
-          {selectedObjectType && (
-            <button
-              onClick={handleExportAnnotation}
-              className="mt-3 bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded text-sm"
-            >
-              Export Annotation
-            </button>
+          {/* Loading Overlay */}
+          {loading && (
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                  <p className="text-gray-700 font-medium">
+                    {hasSegmented ? 'Processing your selection...' : 'Analyzing image (this may take a moment)...'}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
-      )}
+      </div>
+
+      {/* Status and Results */}
+      <div className="px-6 pb-6">
+        {/* Status Message */}
+        {statusMessage && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            segmentation?.cached 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            <div className="flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">{statusMessage}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Segmentation Results */}
+        {segmentation && (
+          <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Segmentation Results
+              </h3>
+              
+              {selectedObjectType && (
+                <button
+                  onClick={handleExportAnnotation}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-lg font-medium text-sm shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  Export Annotation
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Annotation ID</p>
+                <p className="text-sm font-mono text-gray-900 truncate">{segmentation.annotation_id}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Boundary Points</p>
+                <p className="text-sm font-semibold text-gray-900">{segmentation.polygon.length}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Type</p>
+                <p className="text-sm font-semibold text-purple-600">
+                  {segmentation.annotation_id?.startsWith('manual-') 
+                    ? 'Manual' 
+                    : segmentation.annotation_id?.includes('-modified')
+                    ? 'AI + Manual'
+                    : 'AI Generated'
+                  }
+                </p>
+              </div>
+              {segmentation.cached && !segmentation.annotation_id?.startsWith('manual-') && (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Status</p>
+                  <p className="text-sm font-semibold text-green-700">Cached Result</p>
+                </div>
+              )}
+            </div>
+            
+            {selectedObjectType && (
+              <div className="flex items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a.997.997 0 01-1.414 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <div>
+                  <p className="text-sm text-blue-900 font-medium">Object Classification</p>
+                  <p className="text-blue-700">
+                    {selectedObjectType.startsWith('custom:') ? 
+                      selectedObjectType.substring(7) : selectedObjectType}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
