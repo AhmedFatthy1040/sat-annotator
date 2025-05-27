@@ -97,20 +97,25 @@ async def save_annotation_with_type(
         # Save to file
         with open(annotation_path, "w") as f:
             json.dump(geojson_data, f, indent=2)
-        
-        # Add or update annotation in session store
+          # Add or update annotation in session store
         if annotation:
             # Update existing annotation
             annotation.file_path = str(annotation_path)
             session_store.sessions[session_id]["annotations"][request.annotation_id] = annotation
             response_message = "Annotation updated successfully"
         else:
+            # Determine if this is an AI-generated annotation based on the annotation_id
+            is_ai_generated = request.annotation_id.startswith('ai-') or (
+                not request.annotation_id.startswith('manual-') and 
+                '-modified' not in request.annotation_id
+            )
+            
             # Create new annotation
             annotation = session_store.add_annotation(
                 session_id=session_id,
                 image_id=request.image_id,
                 file_path=str(annotation_path),
-                auto_generated=False
+                auto_generated=is_ai_generated
             )
             response_message = "Annotation created successfully"
         

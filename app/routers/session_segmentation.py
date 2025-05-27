@@ -11,6 +11,7 @@ import os
 import logging
 from datetime import datetime
 import cv2
+import uuid
 
 # Set up logging
 log_dir = Path("app/logs")
@@ -126,36 +127,16 @@ async def segment_from_point(
         polygon = segmenter.mask_to_polygon(mask)
         
         if not polygon:
-            raise HTTPException(status_code=400, detail="Could not generate polygon from mask")
-        
-        # Save GeoJSON
-        annotation_path = annotation_dir / f"annotation_{session_id}_{image.image_id}_{len(polygon)}.json"
-        with open(annotation_path, "w") as f:
-            json.dump({
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [polygon]
-                },
-                "properties": {
-                    "cached": is_cached
-                }
-            }, f)
-        
-        # Add annotation to session store
-        annotation = session_store.add_annotation(
-            session_id=session_id,
-            image_id=image.image_id,
-            file_path=str(annotation_path),
-            auto_generated=True
-        )
+            raise HTTPException(status_code=400, detail="Could not generate polygon from mask")        # Generate a temporary annotation ID for the segmentation (not saved to store yet)
+        # This ID will be used when the user actually exports the annotation
+        temp_annotation_id = f"ai-{str(uuid.uuid4())}"
         
         logger.debug(f"Generated segmentation with {len(polygon)} points, cached: {is_cached}")
         
         return SegmentationResponse(
             success=True,
             polygon=polygon,
-            annotation_id=annotation.annotation_id if annotation else None,
+            annotation_id=temp_annotation_id,
             cached=is_cached
         )
         
