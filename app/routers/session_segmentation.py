@@ -34,6 +34,8 @@ class PointPrompt(BaseModel):
     image_id: str
     x: float
     y: float
+    simplify: Optional[bool] = True
+    target_points: Optional[int] = 20
 
 class SegmentationResponse(BaseModel):
     success: bool
@@ -124,7 +126,7 @@ async def segment_from_point(
         cv2.imwrite(str(overlay_path), overlay)
         logger.debug(f"Overlay saved at {overlay_path}")
         
-        polygon = segmenter.mask_to_polygon(mask)
+        polygon = segmenter.mask_to_polygon(mask, simplify=prompt.simplify, target_points=prompt.target_points)
         
         if not polygon:
             raise HTTPException(status_code=400, detail="Could not generate polygon from mask")        # Generate a temporary annotation ID for the segmentation (not saved to store yet)

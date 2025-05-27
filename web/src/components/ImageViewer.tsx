@@ -16,8 +16,7 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
   const [image, setImage] = useState<Image | null>(null);
   const [segmentation, setSegmentation] = useState<SegmentationResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [hasSegmented, setHasSegmented] = useState(false);
   
   // Manual annotation states
@@ -28,6 +27,10 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
   const [isPolygonClosed, setIsPolygonClosed] = useState(false);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
   const [hoveredClosePoint, setHoveredClosePoint] = useState(false);
+  
+  // Polygon simplification settings
+  const [simplifyPolygon, setSimplifyPolygon] = useState(true);
+  const [targetPoints, setTargetPoints] = useState(20);
   const [isEditingMode, setIsEditingMode] = useState(false); // Add an editing mode flag
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -119,12 +122,12 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
       setStatusMessage(hasSegmented ? 
         'Getting segmentation from cache...' : 
         'Processing image (first click takes longer)...'
-      );
-  
-      const segResponse = await api.segmentFromPoint({
+      );      const segResponse = await api.segmentFromPoint({
         image_id: imageId,
         x,
-        y
+        y,
+        simplify: simplifyPolygon,
+        target_points: targetPoints
       });
   
       setSegmentation(segResponse);
@@ -921,8 +924,65 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
                 )}
               </svg>
               {isManualMode ? 'Manual Annotation' : 'AI-Powered Segmentation'}
-            </button>
-          </div>
+            </button>          </div>
+          
+          {/* AI Segmentation Settings */}
+          {!isManualMode && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Polygon Simplification
+              </h4>
+              
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="simplify-polygon"
+                    checked={simplifyPolygon}
+                    onChange={(e) => setSimplifyPolygon(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <label htmlFor="simplify-polygon" className="ml-2 text-sm text-gray-700">
+                    Enable polygon simplification
+                  </label>
+                </div>
+                
+                {simplifyPolygon && (
+                  <div className="ml-6">
+                    <label htmlFor="target-points" className="block text-xs text-gray-600 mb-1">
+                      Target number of points: {targetPoints}
+                    </label>
+                    <input
+                      type="range"
+                      id="target-points"
+                      min="10"
+                      max="50"
+                      value={targetPoints}
+                      onChange={(e) => setTargetPoints(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>10 (High simplification)</span>
+                      <span>50 (Low simplification)</span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+                  <div className="flex items-start">
+                    <svg className="w-3 h-3 text-blue-500 mr-1 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Simplification reduces the number of points in AI-generated polygons, making them easier to edit manually. Lower values = fewer points = more simplified shapes.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {isManualMode && (
             <div className="flex items-center space-x-3">

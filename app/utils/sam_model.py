@@ -10,6 +10,83 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def simplify_polygon(points, tolerance=2.0):
+    """
+    Simplify a polygon using the Douglas-Peucker algorithm to reduce the number of points.
+    
+    Args:
+        points: List of [x, y] coordinates
+        tolerance: Maximum distance threshold for point removal (higher = more aggressive simplification)
+    
+    Returns:
+        Simplified polygon with fewer points
+    """
+    if len(points) < 3:
+        return points
+    
+    # Convert to numpy array for easier manipulation
+    points_array = np.array(points, dtype=np.float32)
+    
+    # Use OpenCV's approxPolyDP function which implements Douglas-Peucker algorithm
+    # Calculate epsilon as a percentage of the contour perimeter
+    perimeter = cv2.arcLength(points_array, True)
+    epsilon = tolerance / 100.0 * perimeter if perimeter > 0 else tolerance
+    
+    # Simplify the contour
+    simplified = cv2.approxPolyDP(points_array, epsilon, True)
+    
+    # Convert back to list format
+    simplified_points = simplified.squeeze().tolist()
+    
+    # Ensure we have at least 3 points for a valid polygon
+    if len(simplified_points) < 3:
+        # If simplification reduced to less than 3 points, use original
+        return points
+    
+    # Make sure points are in the correct format
+    if not isinstance(simplified_points[0], list):
+        simplified_points = [simplified_points]
+    
+    logger.debug(f"Polygon simplified from {len(points)} to {len(simplified_points)} points")
+    return simplified_points
+
+
+def adaptive_simplify_polygon(points, target_points=20, min_tolerance=0.5, max_tolerance=5.0):
+    """
+    Adaptively simplify a polygon to achieve approximately the target number of points.
+    
+    Args:
+        points: List of [x, y] coordinates
+        target_points: Desired number of points (default: 20)
+        min_tolerance: Minimum tolerance for simplification
+        max_tolerance: Maximum tolerance for simplification
+    
+    Returns:
+        Simplified polygon with approximately target_points
+    """
+    if len(points) <= target_points:
+        return points
+    
+    # Binary search to find the right tolerance
+    low, high = min_tolerance, max_tolerance
+    best_result = points
+    
+    for _ in range(10):  # Max 10 iterations
+        mid = (low + high) / 2
+        simplified = simplify_polygon(points, mid)
+        
+        if len(simplified) == target_points:
+            return simplified
+        elif len(simplified) > target_points:
+            low = mid
+            best_result = simplified
+        else:
+            high = mid
+    
+    return best_result
+
+
 class SAMSegmenter:
     def __init__(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -27,7 +104,8 @@ class SAMSegmenter:
         self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
         self.sam.to(device=self.device)
         self.predictor = SamPredictor(self.sam)
-          # Cache for storing image embeddings and masks
+        
+        # Cache for storing image embeddings and masks
         self.cache: Dict[str, Dict] = {}
         self.current_image_path = None
 
@@ -149,8 +227,18 @@ class SAMSegmenter:
         
         return mask
 
-    def mask_to_polygon(self, mask):
-        """Convert binary mask to polygon coordinates"""
+    def mask_to_polygon(self, mask, simplify=True, target_points=20):
+        """
+        Convert binary mask to polygon coordinates with optional simplification.
+        
+        Args:
+            mask: Binary mask from segmentation
+            simplify: Whether to simplify the polygon (default: True)
+            target_points: Target number of points for simplified polygon (default: 20)
+        
+        Returns:
+            Polygon coordinates as list of [x, y] points
+        """
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return None
@@ -160,7 +248,13 @@ class SAMSegmenter:
         
         if not isinstance(polygon[0], list):
             polygon = [polygon]
-            
+        
+        if simplify and len(polygon) > target_points:
+            # Use adaptive simplification to get manageable number of points
+            simplified_polygon = adaptive_simplify_polygon(polygon, target_points)
+            logger.info(f"Polygon simplified from {len(polygon)} to {len(simplified_polygon)} points")
+            return simplified_polygon
+        
         return polygon
 
     def clear_cache(self, image_path=None):

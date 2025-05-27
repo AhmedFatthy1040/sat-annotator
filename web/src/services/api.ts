@@ -19,6 +19,8 @@ export interface SegmentationRequest {
   image_id: string; // Changed from number to string for session-based UUIDs
   x: number;
   y: number;
+  simplify?: boolean; // Whether to simplify the polygon (default: true)
+  target_points?: number; // Target number of points for simplified polygon (default: 20)
 }
 
 export interface SegmentationResponse {
