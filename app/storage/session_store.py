@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -10,6 +10,7 @@ class SessionImage(BaseModel):
     file_path: str
     resolution: Optional[str] = None
     source: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # For TIFF and other image metadata
     capture_date: datetime = datetime.now()
     created_at: datetime = datetime.now()
 
@@ -30,8 +31,7 @@ class SessionStore:
     """
     def __init__(self):
         # Dictionary to store active sessions
-        self.sessions: Dict[str, Dict] = {}
-    
+        self.sessions: Dict[str, Dict] = {}    
     def create_session(self, session_id: str) -> None:
         """Create a new session if it doesn't exist"""
         if session_id not in self.sessions:
@@ -40,13 +40,14 @@ class SessionStore:
                 "annotations": {},
                 "created_at": datetime.now()
             }
-    
+
     def get_session(self, session_id: str) -> Optional[Dict]:
         """Get session data by ID"""
         return self.sessions.get(session_id)
-    
+
     def add_image(self, session_id: str, file_name: str, file_path: str, 
-                 resolution: Optional[str] = None, source: Optional[str] = None) -> SessionImage:
+                 resolution: Optional[str] = None, source: Optional[str] = None,
+                 metadata: Optional[Dict[str, Any]] = None) -> SessionImage:
         """Add image to session and return the created image object"""
         self.create_session(session_id)
         
@@ -56,7 +57,8 @@ class SessionStore:
             file_name=file_name,
             file_path=file_path,
             resolution=resolution,
-            source=source or "user_upload"
+            source=source or "user_upload",
+            metadata=metadata
         )
         
         self.sessions[session_id]["images"][image_id] = image
@@ -115,6 +117,16 @@ class SessionStore:
             return None
             
         return self.sessions[session_id]["annotations"].get(annotation_id)
+    
+    def get_annotations_by_image(self, session_id: str, image_id: str) -> List[SessionAnnotation]:
+        """Get all annotations for a specific image"""
+        if session_id not in self.sessions:
+            return []
+        
+        return [
+            annotation for annotation in self.sessions[session_id]["annotations"].values()
+            if annotation.image_id == image_id
+        ]
     
     def delete_session(self, session_id: str) -> bool:
         """Delete a session and return True if successful"""

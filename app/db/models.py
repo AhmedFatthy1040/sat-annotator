@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -12,6 +12,7 @@ class Image(Base):
     resolution = Column(String(50))
     capture_date = Column(DateTime, server_default=func.now())
     source = Column(String(100))
+    metadata = Column(JSON, nullable=True)  # Store TIFF and other image metadata
     created_at = Column(DateTime, server_default=func.now())
     
     annotations = relationship("AnnotationFile", back_populates="image")

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class ImageBase(BaseModel):
@@ -7,6 +7,7 @@ class ImageBase(BaseModel):
     file_path: str
     resolution: Optional[str] = None
     source: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 class ImageCreate(ImageBase):
     pass

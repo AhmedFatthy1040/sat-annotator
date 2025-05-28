@@ -11,6 +11,7 @@ import os
 import logging
 from datetime import datetime
 import cv2
+import uuid
 
 # Set up logging
 log_dir = Path("app/logs")
@@ -33,6 +34,8 @@ class PointPrompt(BaseModel):
     image_id: str
     x: float
     y: float
+    simplify: Optional[bool] = True
+    target_points: Optional[int] = 20
 
 class SegmentationResponse(BaseModel):
     success: bool
@@ -62,11 +65,10 @@ async def segment_from_point(
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             annotation_dir = Path(os.path.join(base_dir, "annotations"))
         annotation_dir.mkdir(exist_ok=True)
-        
-        # Get the image path from the session store
+          # Get the image path from the session store
         stored_path = image.file_path
         
-        # Construct image path
+        # Construct image path - handle processed TIFF files
         if in_docker:
             if stored_path.startswith("uploads/"):
                 image_path = "/app/" + stored_path
@@ -78,9 +80,23 @@ async def segment_from_point(
             else:
                 image_path = stored_path
         
-        # Check if file exists
+        # Check if file exists, if not try to find processed version
         if not os.path.exists(image_path):
-            raise FileNotFoundError(f"Image file not found at {image_path}")
+            # For TIFF files, try to find the processed version
+            if stored_path.endswith(('.tif', '.tiff')):
+                processed_filename = f"processed_{Path(stored_path).stem}.png"
+                if in_docker:
+                    processed_path = f"/app/uploads/processed/{processed_filename}"
+                else:
+                    processed_path = os.path.join(base_dir, "uploads", "processed", processed_filename)
+                
+                if os.path.exists(processed_path):
+                    image_path = processed_path
+                    logger.info(f"Using processed TIFF version: {image_path}")
+                else:
+                    raise FileNotFoundError(f"Neither original nor processed image found for {stored_path}")
+            else:
+                raise FileNotFoundError(f"Image file not found at {image_path}")
         
         # Check if this is a new image or one we've already processed
         is_cached = image_path == segmenter.current_image_path and image_path in segmenter.cache
@@ -110,39 +126,19 @@ async def segment_from_point(
         cv2.imwrite(str(overlay_path), overlay)
         logger.debug(f"Overlay saved at {overlay_path}")
         
-        polygon = segmenter.mask_to_polygon(mask)
+        polygon = segmenter.mask_to_polygon(mask, simplify=prompt.simplify, target_points=prompt.target_points)
         
         if not polygon:
-            raise HTTPException(status_code=400, detail="Could not generate polygon from mask")
-        
-        # Save GeoJSON
-        annotation_path = annotation_dir / f"annotation_{session_id}_{image.image_id}_{len(polygon)}.json"
-        with open(annotation_path, "w") as f:
-            json.dump({
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [polygon]
-                },
-                "properties": {
-                    "cached": is_cached
-                }
-            }, f)
-        
-        # Add annotation to session store
-        annotation = session_store.add_annotation(
-            session_id=session_id,
-            image_id=image.image_id,
-            file_path=str(annotation_path),
-            auto_generated=True
-        )
+            raise HTTPException(status_code=400, detail="Could not generate polygon from mask")        # Generate a temporary annotation ID for the segmentation (not saved to store yet)
+        # This ID will be used when the user actually exports the annotation
+        temp_annotation_id = f"ai-{str(uuid.uuid4())}"
         
         logger.debug(f"Generated segmentation with {len(polygon)} points, cached: {is_cached}")
         
         return SegmentationResponse(
             success=True,
             polygon=polygon,
-            annotation_id=annotation.annotation_id if annotation else None,
+            annotation_id=temp_annotation_id,
             cached=is_cached
         )
         
