@@ -12,13 +12,12 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
-      strictPort: true,
-      proxy: {
+      strictPort: true,      proxy: {
         [API_BASE]: {
           target: API_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
-          rewrite: (path: string) => path.replace(new RegExp(`^${API_BASE}`), ''),
+          // Don't rewrite the path - keep the /api prefix for the backend
         },
         '/uploads': {
           target: API_PROXY_TARGET,

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import session_images, session_segmentation
+from app.routers import session_images, session_segmentation, annotations
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -48,9 +48,15 @@ def health_check():
 # Include session-based routers
 app.include_router(session_images.router, prefix="/api", tags=["images"])
 app.include_router(session_segmentation.router, prefix="/api", tags=["segmentation"])
+app.include_router(annotations.router, prefix="/api", tags=["annotations"])
 
 # Mount the uploads directory for static file serving
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
+# Mount the processed directory for TIFF processed files
+processed_dir = uploads_dir / "processed"
+processed_dir.mkdir(exist_ok=True)
+app.mount("/uploads/processed", StaticFiles(directory=str(processed_dir)), name="processed")
 
 # Mount frontend if the build directory exists
 if frontend_dir.exists():

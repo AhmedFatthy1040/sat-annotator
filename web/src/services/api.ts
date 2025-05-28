@@ -19,6 +19,8 @@ export interface SegmentationRequest {
   image_id: string; // Changed from number to string for session-based UUIDs
   x: number;
   y: number;
+  simplify?: boolean; // Whether to simplify the polygon (default: true)
+  target_points?: number; // Target number of points for simplified polygon (default: 20)
 }
 
 export interface SegmentationResponse {
@@ -26,6 +28,21 @@ export interface SegmentationResponse {
   polygon: number[][];
   annotation_id?: string;
   cached?: boolean; // Indicates if the segmentation was retrieved from cache
+}
+
+export interface AnnotationTypeRequest {
+  image_id: string;
+  annotation_id: string;
+  object_type: string;
+  polygon: number[][];
+  custom_properties?: Record<string, any>;
+}
+
+export interface AnnotationResponse {
+  success: boolean;
+  annotation_id: string;
+  message: string;
+  file_path?: string;
 }
 
 // API URL configuration
@@ -88,6 +105,38 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.detail || `Error creating segmentation: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+  // Save an annotation with object type
+  async saveAnnotationWithType(request: AnnotationTypeRequest): Promise<AnnotationResponse> {
+    const response = await fetch(`${API_URL}/annotate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Error saving annotation: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+  
+  // Get all annotations for an image
+  async getAnnotationsForImage(imageId: string): Promise<any[]> {
+    const response = await fetch(`${API_URL}/annotations/${imageId}`, {
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Error getting annotations: ${response.statusText}`);
     }
     
     return response.json();
