@@ -304,13 +304,12 @@ export const ImageViewer = ({ imageId, onSegmentationChange, selectedObjectType,
     };
       // Extract filename from file_path - handle both absolute and relative paths
     const filename = image.file_path.split('/').pop();
-    
-    // Determine the correct image URL - use processed version if available
-    let imageUrl = `/api/uploads/${filename}`;
+      // Determine the correct image URL - use processed version if available
+    let imageUrl = `/uploads/${filename}`;
     
     // Check if this is a processed TIFF file path
     if (image.file_path.includes('processed/')) {
-      imageUrl = `/api/${image.file_path}`;
+      imageUrl = `/${image.file_path}`;
     }
     
     // Use relative URL instead of hardcoded localhost

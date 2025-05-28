@@ -6,12 +6,9 @@ interface ImageGalleryProps {
   onSelectImage: (imageId: string) => void;
 }
 
-export const ImageGallery = ({ onSelectImage }: ImageGalleryProps) => {
-  const [images, setImages] = useState<Image[]>([]);
+export const ImageGallery = ({ onSelectImage }: ImageGalleryProps) => {  const [images, setImages] = useState<Image[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
   const fetchImages = async () => {
     try {
@@ -89,13 +86,12 @@ export const ImageGallery = ({ onSelectImage }: ImageGalleryProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">        {images.map((image) => {
           // Extract filename from file_path - handle both absolute and relative paths
           const filename = image.file_path.split('/').pop();
-          
-          // Determine the correct image URL - use processed version if available
-          let imageUrl = `${API_BASE}/uploads/${filename}`;
+            // Determine the correct image URL - use processed version if available
+          let imageUrl = `/uploads/${filename}`;
           
           // Check if this is a processed TIFF file path
           if (image.file_path.includes('processed/')) {
-            imageUrl = `${API_BASE}/${image.file_path}`;
+            imageUrl = `/${image.file_path}`;
           }
           
           return (
