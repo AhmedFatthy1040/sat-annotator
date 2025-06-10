@@ -335,21 +335,18 @@ class Utils {
             return;
         }
         
-        // Try multiple methods to ensure it's hidden
-        overlay.style.display = 'none';
-        overlay.style.visibility = 'hidden';
-        overlay.style.opacity = '0';
-        overlay.hidden = true;
-        overlay.classList.add('hidden');
-        
-        // Debug: Check if it's actually hidden
-        const computedStyle = window.getComputedStyle(overlay);
-        console.log('Loading overlay hidden successfully');
-        console.log('Overlay display style:', overlay.style.display);
-        console.log('Overlay hidden attribute:', overlay.hidden);
-        console.log('Computed display:', computedStyle.display);
-        console.log('Computed visibility:', computedStyle.visibility);
-        console.log('Computed opacity:', computedStyle.opacity);
+        try {
+            // Force hide with multiple methods
+            overlay.style.display = 'none';
+            overlay.style.visibility = 'hidden';
+            overlay.style.opacity = '0';
+            overlay.hidden = true;
+            overlay.classList.add('hidden');
+            
+            console.log('Loading overlay hidden successfully');
+        } catch (error) {
+            console.error('Error hiding loading overlay:', error);
+        }
     }
 
     // Show toast notification

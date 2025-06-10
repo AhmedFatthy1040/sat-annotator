@@ -4,11 +4,17 @@ from segment_anything import sam_model_registry, SamPredictor
 import cv2
 from pathlib import Path
 import os
+import logging
 from typing import Dict, Tuple, List, Optional
+
+logger = logging.getLogger(__name__)
 
 class SAMSegmenter:
     def __init__(self):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')        # Check if running in Docker or locally
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        logger.info(f"SAM initialized with device: {self.device}")
+        
+        # Check if running in Docker or locally
         in_docker = os.path.exists('/.dockerenv')
         base_path = Path("/app") if in_docker else Path(".")
         
@@ -18,22 +24,43 @@ class SAMSegmenter:
         if not Path(self.sam_checkpoint).exists():
             raise FileNotFoundError(f"SAM checkpoint not found at {self.sam_checkpoint}. Please download it from https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth")
         
-        self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
-        self.sam.to(device=self.device)
-        self.predictor = SamPredictor(self.sam)
+        # Lazy initialization - don't load model until first use
+        self.sam = None
+        self.predictor = None
+        self._model_loaded = False
         
         # Cache for storing image embeddings and masks
         self.cache: Dict[str, Dict] = {}
         self.current_image_path = None
 
+    def _ensure_model_loaded(self):
+        """Ensure the SAM model is loaded, load it if not already loaded"""
+        if not self._model_loaded:
+            logger.info("Loading SAM model for the first time...")
+            try:
+                self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
+                self.sam.to(device=self.device)
+                self.predictor = SamPredictor(self.sam)
+                self._model_loaded = True
+                logger.info("SAM model loaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to load SAM model: {e}")
+                raise
+        else:
+            logger.debug("SAM model already loaded")
+
     def set_image(self, image_path):
         """Set the image for segmentation and cache its embedding"""
+        # Ensure model is loaded
+        self._ensure_model_loaded()
+        
         # Check if we've already processed this image
         if image_path in self.cache:
             self.current_image_path = image_path
             return self.cache[image_path]['image_size']
         
         # Load and process the new image
+        logger.info(f"Processing new image: {image_path}")
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         self.predictor.set_image(image)
@@ -50,6 +77,9 @@ class SAMSegmenter:
 
     def predict_from_point(self, point_coords, point_labels=None):
         """Generate mask from a point prompt, using cache if available"""
+        # Ensure model is loaded
+        self._ensure_model_loaded()
+        
         if self.current_image_path is None:
             raise ValueError("No image set for segmentation. Call set_image() first.")
         
@@ -58,9 +88,11 @@ class SAMSegmenter:
         
         # Check if we already have a mask for this point
         if point_key in self.cache[self.current_image_path]['masks']:
+            logger.info(f"Using cached mask for point {point_coords}")
             return self.cache[self.current_image_path]['masks'][point_key]
         
         # Generate new mask
+        logger.info(f"Generating new mask for point {point_coords}")
         point_coords_array = np.array([point_coords])
         if point_labels is None:
             point_labels = np.array([1])  # 1 indicates a foreground point

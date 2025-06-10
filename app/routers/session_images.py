@@ -26,17 +26,31 @@ def run_background_segmentation(session_id: str, image_id: str):
     import os
     from pathlib import Path
     import cv2
+    
+    logger = logging.getLogger("background_segmentation")
+    
     try:
+        # Send initial progress update
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(ws_manager.send_message(session_id, "Starting image processing..."))
+        
         image = session_store.get_image(session_id, image_id)
         if not image:
-            logging.error(f"No image found for segmentation: {image_id}")
+            logger.error(f"No image found for segmentation: {image_id}")
+            loop.run_until_complete(ws_manager.send_message(session_id, "Error: Image not found"))
             return
+            
+        # Send progress update
+        loop.run_until_complete(ws_manager.send_message(session_id, "Loading SAM model..."))
+        
         # Get image path logic (copied from segmentation endpoint)
         in_docker = os.path.exists('/.dockerenv')
         if in_docker:
             base_dir = "/app"
         else:
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         stored_path = image.file_path
         if in_docker:
             if stored_path.startswith("uploads/"):
@@ -48,36 +62,64 @@ def run_background_segmentation(session_id: str, image_id: str):
                 image_path = os.path.join(base_dir, stored_path)
             else:
                 image_path = stored_path
+                
         if not os.path.exists(image_path):
-            logging.error(f"Image file not found at {image_path}")
+            logger.error(f"Image file not found at {image_path}")
+            loop.run_until_complete(ws_manager.send_message(session_id, "Error: Image file not found"))
             return
+            
+        # Send progress update
+        loop.run_until_complete(ws_manager.send_message(session_id, "Processing image..."))
+        
         # Set image and get dimensions
         height, width = segmenter.set_image(image_path)
+        
+        # Send progress update
+        loop.run_until_complete(ws_manager.send_message(session_id, "Generating segmentation..."))
+        
         # Use center point for auto-segmentation
         pixel_x = width // 2
         pixel_y = height // 2
         mask = segmenter.predict_from_point([pixel_x, pixel_y])
+        
+        # Send progress update
+        loop.run_until_complete(ws_manager.send_message(session_id, "Saving results..."))
+        
         # Save mask and overlay (copied from segmentation endpoint)
         annotation_dir = Path(base_dir) / "annotations"
         annotation_dir.mkdir(exist_ok=True)
         mask_image_path = annotation_dir / f"mask_{session_id}_{image_id}.png"
         cv2.imwrite(str(mask_image_path), mask)
+        
         original_image = cv2.imread(image_path)
         mask_colored = cv2.applyColorMap(mask, cv2.COLORMAP_JET)
         overlay = cv2.addWeighted(original_image, 0.7, mask_colored, 0.3, 0)
         overlay_path = annotation_dir / f"overlay_{session_id}_{image_id}.png"
         cv2.imwrite(str(overlay_path), overlay)
+        
         polygon = segmenter.mask_to_polygon(mask)
+        
         # Save annotation in session store (auto_generated=True)
         session_store.add_annotation(session_id, image_id, str(mask_image_path), auto_generated=True)
-        # Notify frontend via WebSocket
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        
+        # Final notification
         loop.run_until_complete(ws_manager.send_message(session_id, "Image ready for annotation"))
-        loop.close()
-        logging.info(f"Background segmentation notification sent for session {session_id}")
+        
+        logger.info(f"Background segmentation completed successfully for session {session_id}")
+        
     except Exception as e:
-        logging.error(f"Background segmentation failed for session {session_id}: {e}")
+        logger.error(f"Background segmentation failed for session {session_id}: {e}", exc_info=True)
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(ws_manager.send_message(session_id, f"Error: Segmentation failed - {str(e)}"))
+        except:
+            pass
+    finally:
+        try:
+            loop.close()
+        except:
+            pass
 
 def notify_segmentation_ready(session_id: str, image_id: str):
     thread = threading.Thread(target=run_background_segmentation, args=(session_id, image_id))

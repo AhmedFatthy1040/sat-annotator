@@ -392,3 +392,36 @@ async def delete_annotation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting annotation: {str(e)}"
         )
+
+@router.get("/status")
+async def get_segmentation_status():
+    """Get the status of the segmentation service"""
+    try:
+        model_loaded = segmenter._model_loaded if hasattr(segmenter, '_model_loaded') else False
+        device = str(segmenter.device) if hasattr(segmenter, 'device') else 'unknown'
+        cache_size = len(segmenter.cache) if hasattr(segmenter, 'cache') else 0
+        
+        return {
+            "status": "healthy",
+            "model_loaded": model_loaded,
+            "device": device,
+            "cached_images": cache_size,
+            "current_image": segmenter.current_image_path is not None
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+@router.post("/preload")
+async def preload_sam_model():
+    """Preload the SAM model to reduce first-time segmentation latency"""
+    try:
+        segmenter._ensure_model_loaded()
+        return {"success": True, "message": "SAM model preloaded successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to preload SAM model: {str(e)}"
+        )

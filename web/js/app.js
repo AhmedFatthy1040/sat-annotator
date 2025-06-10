@@ -36,6 +36,14 @@ class SATAnnotator {
             // Show loading immediately
             Utils.showLoading('Initializing...');
             console.log('Step 1: Loading overlay shown');
+              // Preload SAM model to reduce segmentation latency
+            console.log('Step 1.2: Preloading SAM model...');
+            try {
+                await fetch('/api/preload', { method: 'POST' });
+                console.log('Step 1.2: SAM model preloaded successfully');
+            } catch (e) {
+                console.warn('Step 1.2: SAM model preload failed, will load on first use:', e);
+            }
             
             // Clear any existing session to ensure fresh start
             console.log('Step 1.5: Clearing any existing session...');
@@ -117,8 +125,7 @@ class SATAnnotator {
             Utils.showToast('SAT Annotator ready!', 'success');
             console.log('=== SAT Annotator Initialization Complete ===');
             
-        } catch (error) {
-            console.error('!!! INITIALIZATION FAILED !!!');
+        } catch (error) {            console.error('!!! INITIALIZATION FAILED !!!');
             console.error('Error:', error);
             console.error('Error message:', error.message);
             console.error('Error stack:', error.stack);
@@ -127,7 +134,9 @@ class SATAnnotator {
             Utils.hideLoading();
             Utils.showToast('Failed to initialize application: ' + error.message, 'error');
         }
-    }    resetUI() {
+    }
+
+    resetUI() {
         // Reset images list to show no images
         const imagesList = document.getElementById('imagesList');
         if (imagesList) {
@@ -157,7 +166,9 @@ class SATAnnotator {
         const clearBtn = document.getElementById('clearAnnotations');
         if (exportBtn) exportBtn.disabled = true;
         if (clearBtn) clearBtn.disabled = true;
-    }    setupEventListeners() {        // Page reload/close protection - warn if there are uploaded images or annotations
+    }
+
+    setupEventListeners() {        // Page reload/close protection - warn if there are uploaded images or annotations
         const beforeUnloadHandler = (e) => {
             console.log('beforeunload triggered');
             console.log('this.images:', this.images);
@@ -247,9 +258,30 @@ class SATAnnotator {
         
         // AI Segmentation Settings
         this.setupAISettings();
+
+        // Status button
+        document.getElementById('statusBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                const statusMessage = `
+System Status:
+- Service: ${status.status}
+- SAM Model: ${status.model_loaded ? 'Loaded' : 'Not loaded'}
+- Device: ${status.device}
+- Cached Images: ${status.cached_images}
+- Current Image: ${status.current_image ? 'Set' : 'None'}
+                `.trim();
+                
+                Utils.showToast(statusMessage, status.status === 'healthy' ? 'success' : 'warning');
+            } catch (error) {
+                Utils.showToast('Failed to get system status: ' + error.message, 'error');
+            }
+        });
     }
 
-    setupAISettings() {        // Initialize AI segmentation settings
+    setupAISettings() {
         this.aiSettings = {
             maxPoints: 10,
             quality: 'medium',
@@ -395,7 +427,9 @@ class SATAnnotator {
                 window.canvasManager.fitToScreen();
                 break;
         }
-    }    async handleFileSelect(files) {
+    }
+
+    async handleFileSelect(files) {
         if (!files || files.length === 0) return;
         
         // Handle multiple files
@@ -497,27 +531,46 @@ class SATAnnotator {
                         
                         try {
                             const ws = new WebSocket(wsUrl);
-                            
-                            // Add timeout in case WebSocket never responds
+                              // Add timeout in case WebSocket never responds
                             const segmentationTimeout = setTimeout(() => {
                                 Utils.showProgressBar(100, 'Segmentation timeout - continuing...');
                                 setTimeout(() => {
                                     Utils.hideProgressBar();
                                 }, 2000);
                                 ws.close();
-                            }, 30000); // 30 second timeout
-                            
-                            ws.onopen = () => {
+                            }, 120000); // 2 minute timeout for SAM model processing
+                              ws.onopen = () => {
                                 console.log('WebSocket connected for segmentation progress');
+                                Utils.showProgressBar(20, 'Loading SAM model...');
                             };                            ws.onmessage = (event) => {
-                                clearTimeout(segmentationTimeout);
                                 console.log('WebSocket message received:', event.data);
-                                if (event.data.includes('Image ready for annotation')) {
+                                const message = event.data;
+                                
+                                if (message.includes('Starting image processing')) {
+                                    Utils.showProgressBar(10, 'Starting image processing...');
+                                } else if (message.includes('Loading SAM model')) {
+                                    Utils.showProgressBar(30, 'Loading SAM model...');
+                                } else if (message.includes('Processing image')) {
+                                    Utils.showProgressBar(50, 'Processing image...');
+                                } else if (message.includes('Generating segmentation')) {
+                                    Utils.showProgressBar(70, 'Generating segmentation...');
+                                } else if (message.includes('Saving results')) {
+                                    Utils.showProgressBar(90, 'Saving results...');
+                                } else if (message.includes('Image ready for annotation')) {
+                                    clearTimeout(segmentationTimeout);
                                     Utils.showProgressBar(100, 'Ready for annotation! ✓');
                                     setTimeout(() => {
                                         Utils.hideProgressBar();
                                     }, 1500); // Show completion message for 1.5 seconds
                                     Utils.showToast('Image ready for annotation!', 'success');
+                                    ws.close();
+                                } else if (message.includes('Error:')) {
+                                    clearTimeout(segmentationTimeout);
+                                    Utils.showProgressBar(100, message);
+                                    setTimeout(() => {
+                                        Utils.hideProgressBar();
+                                    }, 3000);
+                                    Utils.showToast(message, 'error');
                                     ws.close();
                                 }
                             };
@@ -585,7 +638,9 @@ class SATAnnotator {
             console.error('Multiple upload process failed:', error);
             Utils.showToast('Upload process failed: ' + error.message, 'error');
         }
-    }    async loadImages() {
+    }
+
+    async loadImages() {
         try {
             console.log('loadImages: Starting to load images...');
             // Don't show loading here since main initialization already shows it
@@ -609,7 +664,9 @@ class SATAnnotator {
             console.error('loadImages: Error occurred:', error);
             throw error; // Re-throw so main initialization can handle it
         }
-    }    updateImagesList() {
+    }
+
+    updateImagesList() {
         const container = document.getElementById('imagesList');
         const clearAllBtn = document.getElementById('clearAllImages');
         
@@ -671,7 +728,9 @@ class SATAnnotator {
         if (clearAllBtn) {
             clearAllBtn.disabled = false;
         }
-    }async selectImage(imageId) {
+    }
+
+    async selectImage(imageId) {
         // Find image data
         const imageData = this.images.find(img => img.image_id == imageId);
         if (!imageData) {
@@ -878,6 +937,10 @@ class SATAnnotator {
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('DOM loaded, starting SAT Annotator...');
+        
+        // Ensure loading overlay is hidden on page load
+        Utils.hideLoading();
+        
         window.satAnnotator = new SATAnnotator();
         window.app = window.satAnnotator; // Alias for easier access
         await window.satAnnotator.initialize();
