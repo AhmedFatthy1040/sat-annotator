@@ -8,18 +8,127 @@ class AnnotationManager {
         this.currentLabel = 'building'; // Default label
         this.customLabels = []; // Store custom labels added by user
         
+        // Satellite imagery specific labels with logical colors
+        this.defaultLabels = {
+            'building': { name: 'Building', icon: 'fas fa-building', color: '#e74c3c' }, // Red for buildings
+            'road': { name: 'Road', icon: 'fas fa-road', color: '#5d6d7e' }, // Gray for roads
+            'vegetation': { name: 'Vegetation', icon: 'fas fa-tree', color: '#27ae60' }, // Green for vegetation
+            'forest': { name: 'Forest', icon: 'fas fa-tree', color: '#1e8449' }, // Dark green for forest
+            'water': { name: 'Water', icon: 'fas fa-water', color: '#3498db' }, // Blue for water
+            'agricultural': { name: 'Agricultural', icon: 'fas fa-seedling', color: '#f39c12' }, // Orange for agriculture
+            'bare_soil': { name: 'Bare Soil', icon: 'fas fa-mountain', color: '#8b4513' }, // Brown for soil
+            'urban_area': { name: 'Urban Area', icon: 'fas fa-city', color: '#9b59b6' }, // Purple for urban
+            'industrial': { name: 'Industrial', icon: 'fas fa-industry', color: '#34495e' }, // Dark gray for industrial
+            'parking': { name: 'Parking', icon: 'fas fa-parking', color: '#7f8c8d' }, // Gray for parking
+            'residential': { name: 'Residential', icon: 'fas fa-home', color: '#e67e22' }, // Orange for residential
+            'commercial': { name: 'Commercial', icon: 'fas fa-store', color: '#8e44ad' }, // Purple for commercial
+            'shadow': { name: 'Shadow', icon: 'fas fa-adjust', color: '#2c3e50' }, // Dark for shadow
+            'cloud': { name: 'Cloud', icon: 'fas fa-cloud', color: '#ecf0f1' }, // Light gray for cloud
+        };
+        
+        // Color palette for custom labels
+        this.customColorPalette = [
+            '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', 
+            '#dda0dd', '#98d8c8', '#f7dc6f', '#bb8fce', '#85c1e9',
+            '#f8c471', '#82e0aa', '#f1948a', '#85c1e9', '#d2b4de'
+        ];
+        this.customColorIndex = 0;
+        
         try {
             this.setupEventListeners();
+            this.initializeLabels();
             this.updateUI();
         } catch (error) {
             console.error('AnnotationManager: Initialization failed:', error);
         }
-    }setupEventListeners() {
-        // Set up label selection events with event delegation for dynamic buttons
-        document.getElementById('labelList').addEventListener('click', (e) => {
-            const btn = e.target.closest('.label-btn');
-            if (btn && !e.target.classList.contains('remove-label')) {
-                this.selectLabel(btn.dataset.label);
+    }
+
+    initializeLabels() {
+        this.populateDropdown();
+        this.selectLabel('building'); // Set default selection
+    }
+
+    populateDropdown() {
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        dropdownOptions.innerHTML = '';
+
+        // Add default labels
+        Object.keys(this.defaultLabels).forEach(labelKey => {
+            const label = this.defaultLabels[labelKey];
+            this.createDropdownOption(labelKey, label.name, label.icon, label.color, true);
+        });
+
+        // Add custom labels
+        this.customLabels.forEach(labelData => {
+            this.createDropdownOption(labelData.key, labelData.name, labelData.icon, labelData.color, false);
+        });
+    }
+
+    createDropdownOption(key, name, icon, color, isDefault) {
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        
+        const option = document.createElement('div');
+        option.className = `dropdown-option ${isDefault ? 'default-label' : ''}`;
+        option.dataset.label = key;
+        
+        option.innerHTML = `
+            <span class="label-color-indicator" style="background-color: ${color}"></span>
+            <i class="${icon} label-icon"></i>
+            <span class="label-name">${name}</span>
+            ${!isDefault ? '<i class="fas fa-times remove-label" onclick="event.stopPropagation(); annotationManager.removeCustomLabel(\'' + key + '\')"></i>' : ''}
+        `;
+        
+        option.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('remove-label')) {
+                this.selectLabel(key);
+                this.closeDropdown();
+            }
+        });
+        
+        dropdownOptions.appendChild(option);
+    }
+
+    getLabelColor(labelKey) {
+        if (this.defaultLabels[labelKey]) {
+            return this.defaultLabels[labelKey].color;
+        }
+        
+        const customLabel = this.customLabels.find(l => l.key === labelKey);
+        if (customLabel) {
+            return customLabel.color;
+        }
+        
+        // Fallback color
+        return '#6b7280';
+    }
+
+    getLabelName(labelKey) {
+        if (this.defaultLabels[labelKey]) {
+            return this.defaultLabels[labelKey].name;
+        }
+        
+        const customLabel = this.customLabels.find(l => l.key === labelKey);
+        if (customLabel) {
+            return customLabel.name;
+        }
+        
+        return labelKey;
+    }    setupEventListeners() {
+        // Dropdown event listeners
+        const dropdown = document.getElementById('labelDropdown');
+        const dropdownSelected = document.getElementById('dropdownSelected');
+        const dropdownOptions = document.getElementById('dropdownOptions');
+
+        // Toggle dropdown
+        dropdownSelected.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleDropdown();
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+                this.closeDropdown();
             }
         });
 
@@ -37,7 +146,36 @@ class AnnotationManager {
         
         // Hide context menu when clicking elsewhere
         document.addEventListener('click', () => this.hideContextMenu());
-    }    async setCurrentImage(imageId) {
+    }
+
+    toggleDropdown() {
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        const dropdownSelected = document.getElementById('dropdownSelected');
+        
+        const isActive = dropdownOptions.classList.contains('active');
+        
+        if (isActive) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+
+    openDropdown() {
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        const dropdownSelected = document.getElementById('dropdownSelected');
+        
+        dropdownOptions.classList.add('active');
+        dropdownSelected.classList.add('active');
+    }
+
+    closeDropdown() {
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        const dropdownSelected = document.getElementById('dropdownSelected');
+        
+        dropdownOptions.classList.remove('active');
+        dropdownSelected.classList.remove('active');
+    }async setCurrentImage(imageId) {
         console.log(`🔍 setCurrentImage called with: ${imageId}`);
         console.log(`🔍 Previous currentImageId: ${this.currentImageId}`);
         
@@ -75,46 +213,65 @@ class AnnotationManager {
             setTimeout(() => window.canvasManager.redraw(), 100);
             setTimeout(() => window.canvasManager.redraw(), 200);
         }
-    }
-
-    selectLabel(label) {
+    }    selectLabel(label) {
         this.currentLabel = label;
         
-        // Update UI to show active label
-        document.querySelectorAll('.label-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        // Update dropdown selected display
+        const selectedLabelText = document.getElementById('selectedLabelText');
+        const selectedLabelColor = document.getElementById('selectedLabelColor');
+        const currentLabel = document.getElementById('currentLabel');
+        const currentLabelColor = document.getElementById('currentLabelColor');
         
-        const activeBtn = document.querySelector(`[data-label="${label}"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-        }
+        const labelName = this.getLabelName(label);
+        const labelColor = this.getLabelColor(label);
+        
+        // Update dropdown
+        selectedLabelText.textContent = labelName;
+        selectedLabelColor.style.backgroundColor = labelColor;
         
         // Update current label display
-        document.getElementById('currentLabel').textContent = label;
-    }
-
-    addCustomLabel() {
+        currentLabel.textContent = labelName;
+        currentLabelColor.style.backgroundColor = labelColor;
+        
+        // Update dropdown options selection
+        document.querySelectorAll('.dropdown-option').forEach(option => {
+            option.classList.toggle('selected', option.dataset.label === label);
+        });
+    }    addCustomLabel() {
         const input = document.getElementById('customLabelInput');
-        const label = input.value.trim().toLowerCase();
+        const label = input.value.trim().toLowerCase().replace(/\s+/g, '_');
         
         if (!label || label.length === 0) {
             return;
         }
         
         // Check if label already exists
-        const existingBtn = document.querySelector(`[data-label="${label}"]`);
-        if (existingBtn) {
+        if (this.defaultLabels[label] || this.customLabels.find(l => l.key === label)) {
             this.selectLabel(label);
             input.value = '';
             return;
         }
         
-        // Add to custom labels
-        this.customLabels.push(label);
+        // Assign color with some logic
+        let color = this.getLogicalColor(label);
+        if (!color) {
+            color = this.customColorPalette[this.customColorIndex % this.customColorPalette.length];
+            this.customColorIndex++;
+        }
         
-        // Create button for custom label
-        this.createCustomLabelButton(label);
+        // Create custom label
+        const customLabel = {
+            key: label,
+            name: input.value.trim(), // Keep original case for display
+            icon: 'fas fa-tag', // Default icon for custom labels
+            color: color
+        };
+        
+        // Add to custom labels
+        this.customLabels.push(customLabel);
+        
+        // Update dropdown
+        this.createDropdownOption(customLabel.key, customLabel.name, customLabel.icon, customLabel.color, false);
         
         // Select the new label
         this.selectLabel(label);
@@ -123,44 +280,45 @@ class AnnotationManager {
         input.value = '';
     }
 
-    createCustomLabelButton(label) {
-        const labelList = document.getElementById('labelList');
+    getLogicalColor(label) {
+        // Apply some logic for color assignment based on label name
+        const lowerLabel = label.toLowerCase();
         
-        const button = document.createElement('button');
-        button.className = 'label-btn';
-        button.dataset.label = label;
+        if (lowerLabel.includes('green') || lowerLabel.includes('vegetation') || lowerLabel.includes('plant')) {
+            return '#27ae60';
+        }
+        if (lowerLabel.includes('water') || lowerLabel.includes('river') || lowerLabel.includes('lake') || lowerLabel.includes('blue')) {
+            return '#3498db';
+        }
+        if (lowerLabel.includes('road') || lowerLabel.includes('path') || lowerLabel.includes('street')) {
+            return '#5d6d7e';
+        }
+        if (lowerLabel.includes('building') || lowerLabel.includes('house') || lowerLabel.includes('structure')) {
+            return '#e74c3c';
+        }
+        if (lowerLabel.includes('soil') || lowerLabel.includes('brown') || lowerLabel.includes('earth')) {
+            return '#8b4513';
+        }
+        if (lowerLabel.includes('urban') || lowerLabel.includes('city')) {
+            return '#9b59b6';
+        }
         
-        button.innerHTML = `
-            <i class="fas fa-tag"></i>
-            <span>${label}</span>
-            <i class="fas fa-times remove-label" onclick="event.stopPropagation(); annotationManager.removeCustomLabel('${label}')"></i>
-        `;
-        
-        // Add click event
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!e.target.classList.contains('remove-label')) {
-                this.selectLabel(label);
-            }
-        });
-        
-        labelList.appendChild(button);
-    }
-
-    removeCustomLabel(label) {
+        return null; // No logical color found, use random
+    }    removeCustomLabel(label) {
         // Remove from custom labels array
-        this.customLabels = this.customLabels.filter(l => l !== label);
+        this.customLabels = this.customLabels.filter(l => l.key !== label);
         
-        // Remove button from UI
-        const btn = document.querySelector(`[data-label="${label}"]`);
-        if (btn && !btn.classList.contains('default-label')) {
-            btn.remove();        }
+        // Remove option from dropdown
+        const option = document.querySelector(`[data-label="${label}"]`);
+        if (option && !option.classList.contains('default-label')) {
+            option.remove();
+        }
         
         // If this was the current label, switch to default
         if (this.currentLabel === label) {
             this.selectLabel('building');
         }
-    }    async loadAnnotations(imageId) {
+    }async loadAnnotations(imageId) {
         try {
             const annotations = await api.getAnnotations(imageId);
             
@@ -314,9 +472,7 @@ class AnnotationManager {
     updateUI() {
         this.updateAnnotationsList();
         this.updateAnnotationCounts();
-    }
-
-    updateAnnotationsList() {
+    }    updateAnnotationsList() {
         const container = document.getElementById('annotationsList');
         
         if (this.annotations.length === 0) {
@@ -327,15 +483,28 @@ class AnnotationManager {
                 </div>
             `;
             return;
-        }        container.innerHTML = this.annotations.map((annotation, index) => {
+        }
+
+        container.innerHTML = this.annotations.map((annotation, index) => {
             const isEditing = window.canvasManager && window.canvasManager.isEditingPolygon && window.canvasManager.editingAnnotationId === annotation.id;
+            const labelColor = this.getLabelColor(annotation.label);
+            const labelName = this.getLabelName(annotation.label);
+            
             return `
                 <div class="annotation-item ${this.selectedAnnotation === annotation.id ? 'selected' : ''} ${isEditing ? 'editing' : ''}" 
                      data-annotation-id="${annotation.id}">
                     <div class="annotation-number">${index + 1}</div>
+                    <div class="annotation-color-indicator" style="background-color: ${labelColor}"></div>
                     <div class="annotation-info">
-                        <h4>${annotation.label}</h4>
-                        <p>${annotation.source === 'ai' ? 'AI Generated' : 'Manual'} • ${annotation.polygon.length} points${annotation.simplified ? ' (simplified)' : ''}</p>
+                        <h4>${labelName}</h4>
+                        <div class="annotation-meta">
+                            <span class="annotation-source ${annotation.source}">
+                                <i class="fas fa-${annotation.source === 'ai' ? 'magic' : 'hand-pointer'}"></i>
+                                ${annotation.source === 'ai' ? 'AI Generated' : 'Manual'}
+                            </span>
+                            <span>${annotation.polygon.length} points</span>
+                            ${annotation.simplified ? '<span title="Simplified from original">Simplified</span>' : ''}
+                        </div>
                     </div>
                     <div class="annotation-actions">
                         <button class="action-btn" onclick="annotationManager.editPolygon('${annotation.id}')" title="Edit polygon">
@@ -811,10 +980,9 @@ class AnnotationManager {
                 annotation.lastOffsetX = offsetX;
                 annotation.lastOffsetY = offsetY;
                 annotation.lastImageId = imageId;
-            }
-              // Determine colors based on selection and source
-            let strokeColor = annotation.source === 'ai' ? '#10b981' : '#3b82f6';
-            let fillColor = annotation.source === 'ai' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)';
+            }            // Determine colors based on label and selection state
+            let strokeColor = this.getLabelColor(annotation.label);
+            let fillColor = strokeColor + '33'; // Add 33 for 20% opacity
             let lineWidth = 2;
             let dashPattern = [];
             
