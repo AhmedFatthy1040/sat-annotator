@@ -82,34 +82,30 @@
                             <span>Edit Mode</span>
                         </button>
                     </div>
-                </div><div class="sidebar-section">
+                </div>                <div class="sidebar-section">
                     <h3><i class="fas fa-tags"></i> Labels</h3>
                     <div class="labels-section">
                         <div class="active-label">
                             <label>Current Label:</label>
-                            <span id="currentLabel" class="current-label-display">building</span>
-                        </div>                        <div class="label-list" id="labelList">
-                            <button class="label-btn active default-label" data-label="building">
-                                <i class="fas fa-building"></i>
-                                <span>Building</span>
-                            </button>
-                            <button class="label-btn default-label" data-label="road">
-                                <i class="fas fa-road"></i>
-                                <span>Road</span>
-                            </button>
-                            <button class="label-btn default-label" data-label="vegetation">
-                                <i class="fas fa-tree"></i>
-                                <span>Vegetation</span>
-                            </button>
-                            <button class="label-btn default-label" data-label="water">
-                                <i class="fas fa-water"></i>
-                                <span>Water</span>
-                            </button>
-                            <button class="label-btn default-label" data-label="parking">
-                                <i class="fas fa-parking"></i>
-                                <span>Parking</span>
-                            </button>
+                            <div class="current-label-display">
+                                <span class="label-color-indicator" id="currentLabelColor"></span>
+                                <span id="currentLabel">building</span>
+                            </div>
                         </div>
+                        
+                        <div class="label-dropdown-container">
+                            <div class="label-dropdown" id="labelDropdown">
+                                <div class="dropdown-selected" id="dropdownSelected">
+                                    <span class="label-color-indicator" id="selectedLabelColor"></span>
+                                    <span id="selectedLabelText">Building</span>
+                                    <i class="fas fa-chevron-down dropdown-arrow"></i>
+                                </div>
+                                <div class="dropdown-options" id="dropdownOptions">
+                                    <!-- Default satellite imagery labels will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="custom-label-input">
                             <input type="text" id="customLabelInput" placeholder="Add custom label..." maxlength="20">
                             <button id="addCustomLabel" class="btn btn-small">
