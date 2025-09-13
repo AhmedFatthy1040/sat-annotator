@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAT-Annotator - Interactive Data Flow Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 10px;
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        .tab-button.active {
+            background: rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .diagram-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            min-height: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .diagram-title {
+            font-size: 1.8rem;
+            color: #4a148c;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .diagram-description {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+            overflow: visible;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .control-btn {
+            background: #4a148c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #6a1b9a;
+        }
+
+        .legend {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .legend h3 {
+            color: #4a148c;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.5);
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 12px;
+            border: 2px solid;
+            flex-shrink: 0;
+        }
+
+        .error-message {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #ffcdd2;
+        }
+
+        .info-box {
+            background: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .info-box h4 {
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .tabs {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .tab-button {
+                margin: 2px;
+                padding: 10px 20px;
+            }
+            
+            .diagram-container {
+                padding: 15px;
+            }            .controls {
+                position: relative;
+                top: auto;
+                right: auto;
+                justify-content: center;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+
+            .control-btn {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛰️ SAT-Annotator Data Flow Diagrams</h1>
+            <p>Interactive visualization of system architecture and data flows</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('level0')">Level 0 - Context</button>
+            <button class="tab-button" onclick="showTab('level1')">Level 1 - Overview</button>
+            <button class="tab-button" onclick="showTab('level2')">Level 2 - AI Segmentation</button>
+        </div>
+
+        <!-- Level 0 - Context Diagram -->
+        <div id="level0" class="tab-content active">
+            <div class="diagram-container">                <div class="controls">
+                    <button class="control-btn" onclick="resetZoom('level0-diagram')">Reset Zoom</button>
+                    <button class="control-btn" onclick="downloadSVG('level0-diagram', 'SAT_Annotator_Level0_Context')">Download SVG</button>
+                    <button class="control-btn" onclick="downloadPNG('level0-diagram', 'SAT_Annotator_Level0_Context')">Download PNG</button>
+                </div>
+                <h2 class="diagram-title">Level 0 - Context Diagram</h2>
+                <p class="diagram-description">
+                    Highest level view showing the SAT-Annotator system as a single process with external entities.
+                </p>
+                
+                <div class="info-box">
+                    <h4>📋 What this shows:</h4>
+                    <p>The complete system boundary showing how users, external systems, and data flows interact with the SAT-Annotator as a single unified process.</p>
+                </div>
+
+                <div id="level0-diagram" class="mermaid">
+graph TB
+    User["👤 User/Annotator<br/>Researcher/GIS Specialist"]
+    FileSystem["📁 File System<br/>Local Storage"]
+    SAMModel["🤖 SAM AI Model<br/>Segment Anything"]
+    System["🛰️ SAT-Annotator System<br/>Satellite Image Annotation Tool"]
+      User -->|"1.1 Upload Satellite Images<br/>JPG/PNG/TIFF/GeoTIFF"| System
+    User -->|"1.2 Point Prompts<br/>Click Coordinates"| System
+    User -->|"1.3 Manual Annotations<br/>Polygon Drawing"| System
+    User -->|"1.4 Export Requests<br/>JSON Format"| System
+    
+    System -->|"2.1 Processed Images<br/>Metadata & Thumbnails"| User
+    System -->|"2.2 AI Segmentation Results<br/>Polygon Boundaries"| User
+    System -->|"2.3 Annotation Files<br/>JSON/Shapefile"| User
+    System -->|"2.4 Session Status<br/>Upload Progress"| User
+      System -->|"3.1 Store Image Files<br/>Original & Processed"| FileSystem
+    System -->|"3.2 Store Annotation Data<br/>JSON Files"| FileSystem
+    FileSystem -->|"3.3 Retrieve Images<br/>For Processing"| System
+    FileSystem -->|"3.4 Retrieve Annotations<br/>For Export"| System
+    
+    System -->|"4.1 Image Data<br/>Pixel Arrays"| SAMModel
+    System -->|"4.2 Point Prompts<br/>X,Y Coordinates"| SAMModel
+    SAMModel -->|"4.3 Segmentation Masks<br/>Binary Masks"| System
+    SAMModel -->|"4.4 Confidence Scores<br/>Quality Metrics"| System
+
+    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef systemStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef externalStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    
+    class User userStyle
+    class System systemStyle
+    class FileSystem,SAMModel externalStyle
+                </div>
+            </div>
+        </div>
+
+        <!-- Level 1 - System Overview -->
+        <div id="level1" class="tab-content">
+            <div class="diagram-container">                <div class="controls">
+                    <button class="control-btn" onclick="resetZoom('level1-diagram')">Reset Zoom</button>
+                    <button class="control-btn" onclick="downloadSVG('level1-diagram', 'SAT_Annotator_Level1_Overview')">Download SVG</button>
+                    <button class="control-btn" onclick="downloadPNG('level1-diagram', 'SAT_Annotator_Level1_Overview')">Download PNG</button>
+                </div>
+                <h2 class="diagram-title">Level 1 - System Overview</h2>
+                <p class="diagram-description">
+                    Breakdown of the SAT-Annotator system into major functional processes and data stores.
+                </p>
+
+                <div class="info-box">
+                    <h4>🔍 What this shows:</h4>
+                    <p>The major functional components of the system including session management, image processing, AI segmentation, manual annotation, data export, and web interface processes.</p>
+                </div>
+
+                <div id="level1-diagram" class="mermaid">
+graph TB
+    User["👤 User/Annotator"]
+    FileSystem["📁 File System"]
+    SAMModel["🤖 SAM AI Model"]
+    
+    P1["1.0 🔐 Session Management"]
+    P2["2.0 📤 Image Upload & Processing"]
+    P3["3.0 🤖 AI Segmentation"]
+    P4["4.0 ✏️ Manual Annotation"]
+    P5["5.0 📊 Data Export"]
+    P6["6.0 🌐 Web Interface"]
+    
+    DS1[("D1 Session Store")]
+    DS2[("D2 Image Cache")]
+    
+    User -->|"Login/Session Request"| P1
+    User -->|"Upload Images"| P2
+    User -->|"Point Prompts"| P3
+    User -->|"Manual Polygons"| P4
+    User -->|"Export Request"| P5
+    User -->|"Web Requests"| P6
+    
+    P1 -->|"Session Data"| User
+    P2 -->|"Upload Status"| User
+    P3 -->|"Segmentation Results"| User
+    P4 -->|"Annotation Confirmation"| User
+    P5 -->|"Download Files"| User
+    P6 -->|"Web Interface"| User
+    
+    P1 -->|"Session ID"| DS1
+    DS1 -->|"Session Data"| P1
+    
+    P2 -->|"Image Metadata"| DS1
+    P2 -->|"Image Files"| FileSystem
+    FileSystem -->|"Stored Images"| P2
+    
+    P3 -->|"Image Path"| DS1
+    DS1 -->|"Image Info"| P3
+    P3 -->|"Embeddings"| DS2
+    DS2 -->|"Cached Data"| P3
+    P3 -->|"Image Data"| SAMModel
+    SAMModel -->|"Segmentation Masks"| P3
+    P3 -->|"Annotations"| DS1
+    
+    P4 -->|"Manual Annotations"| DS1
+    DS1 -->|"Existing Annotations"| P4
+    
+    P5 -->|"Annotation Data"| DS1
+    DS1 -->|"Export Data"| P5
+    P5 -->|"Annotation Files"| FileSystem
+    
+    P6 -->|"Static Files"| FileSystem
+    P6 -->|"API Calls"| P2
+    P6 -->|"API Calls"| P3
+    P6 -->|"API Calls"| P4
+    P6 -->|"API Calls"| P5
+    
+    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef datastoreStyle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef externalStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    
+    class User userStyle
+    class P1,P2,P3,P4,P5,P6 processStyle
+    class DS1,DS2 datastoreStyle
+    class FileSystem,SAMModel externalStyle
+                </div>
+            </div>
+        </div>
+
+        <!-- Level 2 - AI Segmentation Detail -->
+        <div id="level2" class="tab-content">
+            <div class="diagram-container">                <div class="controls">
+                    <button class="control-btn" onclick="resetZoom('level2-diagram')">Reset Zoom</button>
+                    <button class="control-btn" onclick="downloadSVG('level2-diagram', 'SAT_Annotator_Level2_AI_Segmentation')">Download SVG</button>
+                    <button class="control-btn" onclick="downloadPNG('level2-diagram', 'SAT_Annotator_Level2_AI_Segmentation')">Download PNG</button>
+                </div>
+                <h2 class="diagram-title">Level 2 - AI Segmentation Detail</h2>
+                <p class="diagram-description">
+                    Detailed breakdown of the AI Segmentation process (3.0), showing the complete SAM workflow.
+                </p>
+
+                <div class="info-box">
+                    <h4>🧠 What this shows:</h4>
+                    <p>The detailed internal workflow of the AI Segmentation process, including image loading, embedding generation, prompt processing, mask prediction, polygon conversion, and result caching.</p>
+                </div>
+
+                <div id="level2-diagram" class="mermaid">
+graph TB
+    User["👤 User"]
+    DS1[("D1 Session Store")]
+    DS2[("D2 Image Cache")]
+    SAMModel["🤖 SAM AI Model"]
+    
+    P31["3.1 🔍 Image Loading & Validation"]
+    P32["3.2 🧠 Image Embedding Generation"]
+    P33["3.3 📍 Point Prompt Processing"]
+    P34["3.4 🎯 Mask Prediction & Generation"]
+    P35["3.5 🔗 Polygon Conversion & Optimization"]
+    P36["3.6 💾 Result Storage & Caching"]
+    
+    User -->|"Point Coordinates (x,y)"| P33
+    DS1 -->|"Image Metadata & File Path"| P31
+    
+    P31 -->|"Validated Image Array Data"| P32
+    P32 -->|"Image Embeddings"| P34
+    P33 -->|"Processed Points Labels"| P34
+    P34 -->|"Raw Masks Confidence Scores"| P35
+    P35 -->|"Polygon Coordinates Simplified Shapes"| P36
+    
+    P32 -->|"Store Embeddings"| DS2
+    DS2 -->|"Cached Embeddings (if available)"| P32
+    P36 -->|"Cache Results"| DS2
+    
+    P32 -->|"Image Data"| SAMModel
+    SAMModel -->|"Feature Embeddings"| P32
+    P34 -->|"Embeddings + Prompts"| SAMModel
+    SAMModel -->|"Segmentation Masks"| P34
+    
+    P36 -->|"Annotation Metadata"| DS1
+    P36 -->|"Segmentation Results Polygon Data"| User
+    
+    P31 -->|"Validation Errors"| User
+    P32 -->|"Model Load Errors"| User
+    P34 -->|"Segmentation Errors"| User
+    
+    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef datastoreStyle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef externalStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef errorStyle fill:#ffebee,stroke:#c62828,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class User userStyle
+    class P31,P32,P33,P34,P35,P36 processStyle
+    class DS1,DS2 datastoreStyle
+    class SAMModel externalStyle
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <h3>📖 Diagram Legend & Symbols</h3>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e1f5fe; border-color: #01579b;"></div>
+                    <span><strong>👤 User/External Actors:</strong> External entities that interact with the system</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f3e5f5; border-color: #4a148c;"></div>
+                    <span><strong>⚙️ Processes:</strong> System functions that transform or process data</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e8f5e8; border-color: #2e7d32;"></div>
+                    <span><strong>💾 Data Stores:</strong> Repositories where data is stored (temporary/permanent)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #fff3e0; border-color: #e65100;"></div>
+                    <span><strong>🔗 External Systems:</strong> External services (File System, AI Model)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffebee; border-color: #c62828;"></div>
+                    <span><strong>⚠️ Error Flows:</strong> Error handling and exception paths (Level 2 only)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f3e5f5; border-color: #4a148c;"></div>
+                    <span><strong>🛰️ Main System:</strong> The core SAT-Annotator system (Level 0 only)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid with proper configuration
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20
+            },
+            themeVariables: {
+                primaryColor: '#f3e5f5',
+                primaryTextColor: '#4a148c',
+                primaryBorderColor: '#4a148c',
+                lineColor: '#666666',
+                secondaryColor: '#e1f5fe',
+                tertiaryColor: '#fff3e0'
+            }
+        });
+
+        // Global variables
+        let currentTab = 'level0';
+        let initialized = false;
+
+        // Tab switching functionality
+        function showTab(tabId) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab and activate button
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            currentTab = tabId;
+
+            // Re-render mermaid diagrams when tab is switched
+            setTimeout(() => {
+                renderDiagram(tabId);
+            }, 100);
+        }
+
+        // Render specific diagram
+        function renderDiagram(tabId) {
+            const diagramElement = document.querySelector(`#${tabId} .mermaid`);
+            if (diagramElement && !diagramElement.hasAttribute('data-processed')) {
+                try {
+                    mermaid.init(undefined, diagramElement);
+                } catch (error) {
+                    console.error(`Error rendering ${tabId} diagram:`, error);
+                    showError(diagramElement, error.message);
+                }
+            }
+        }
+
+        // Show error message
+        function showError(element, message) {
+            element.innerHTML = `
+                <div class="error-message">
+                    <strong>⚠️ Diagram Rendering Error</strong><br>
+                    ${message}<br>
+                    <small>Please try refreshing the page or check the diagram syntax.</small>
+                </div>
+            `;
+        }
+
+        // Zoom functionality
+        function resetZoom(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const svg = diagram.querySelector('svg');
+            if (svg) {
+                svg.style.transform = 'scale(1)';
+                svg.style.transformOrigin = 'center';
+            }
+        }
+
+        // Download SVG functionality
+        function downloadSVG(diagramId, filename = 'diagram') {
+            const diagram = document.getElementById(diagramId);
+            const svg = diagram.querySelector('svg');
+            if (svg) {
+                // Clone the SVG and ensure proper styling
+                const svgClone = svg.cloneNode(true);
+                svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                
+                const svgData = new XMLSerializer().serializeToString(svgClone);
+                const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                const downloadLink = document.createElement("a");
+                downloadLink.href = svgUrl;
+                downloadLink.download = `${filename}.svg`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(svgUrl);
+            }
+        }
+
+        // Download PNG functionality
+        function downloadPNG(diagramId, filename = 'diagram') {
+            const diagram = document.getElementById(diagramId);
+            const svg = diagram.querySelector('svg');
+            if (svg) {
+                // Clone the SVG and ensure proper styling
+                const svgClone = svg.cloneNode(true);
+                svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                
+                // Create canvas for PNG conversion
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                // Get SVG dimensions
+                const svgRect = svg.getBoundingClientRect();
+                const scale = 2; // Higher resolution
+                canvas.width = svgRect.width * scale;
+                canvas.height = svgRect.height * scale;
+                
+                // Set white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                img.onload = function() {
+                    // Scale up for better quality
+                    ctx.scale(scale, scale);
+                    ctx.drawImage(img, 0, 0, svgRect.width, svgRect.height);
+                    
+                    // Convert to PNG and download
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = url;
+                        downloadLink.download = `${filename}.png`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                        URL.revokeObjectURL(url);
+                    }, 'image/png');
+                };
+                
+                // Convert SVG to data URL
+                const svgData = new XMLSerializer().serializeToString(svgClone);
+                const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                img.src = svgDataUrl;
+            }
+        }
+
+        // Add mouse wheel zoom to diagrams
+        function addZoomFunctionality() {
+            const diagrams = document.querySelectorAll('.mermaid');
+            diagrams.forEach(diagram => {
+                let scale = 1;
+                const zoomFactor = 0.1;
+                const minScale = 0.2;
+                const maxScale = 3;
+
+                diagram.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    const svg = diagram.querySelector('svg');
+                    if (svg) {
+                        const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
+                        scale = Math.max(minScale, Math.min(maxScale, scale + delta));
+                        svg.style.transform = `scale(${scale})`;
+                        svg.style.transformOrigin = 'center';
+                    }
+                });
+
+                // Add double-click to reset zoom
+                diagram.addEventListener('dblclick', function() {
+                    const svg = diagram.querySelector('svg');
+                    if (svg) {
+                        scale = 1;
+                        svg.style.transform = 'scale(1)';
+                        svg.style.transformOrigin = 'center';
+                    }
+                });
+            });
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing SAT-Annotator DFD Viewer...');
+            
+            // Add error handling for mermaid
+            window.addEventListener('error', function(e) {
+                if (e.message && e.message.includes('mermaid')) {
+                    console.error('Mermaid error:', e);
+                }
+            });
+
+            // Initialize first diagram
+            setTimeout(() => {
+                renderDiagram('level0');
+                addZoomFunctionality();
+                initialized = true;
+                console.log('✅ Initialization complete!');
+            }, 500);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        document.querySelector('[onclick="showTab(\'level0\')"]').click();
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        document.querySelector('[onclick="showTab(\'level1\')"]').click();
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        document.querySelector('[onclick="showTab(\'level2\')"]').click();
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        resetZoom(`${currentTab}-diagram`);
+                        break;
+                }
+            }
+        });
+
+        // Add help tooltip
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = document.querySelector('.header');
+            const helpText = document.createElement('div');
+            helpText.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+                font-size: 0.8rem;
+                z-index: 1000;
+                display: none;
+            `;
+            helpText.innerHTML = `
+                <strong>⌨️ Keyboard Shortcuts:</strong><br>
+                Ctrl+1: Level 0 | Ctrl+2: Level 1 | Ctrl+3: Level 2<br>
+                Ctrl+0: Reset Zoom | Mouse Wheel: Zoom | Double-click: Reset
+            `;
+            
+            document.body.appendChild(helpText);
+            
+            // Show help on hover over title
+            header.addEventListener('mouseenter', () => helpText.style.display = 'block');
+            header.addEventListener('mouseleave', () => helpText.style.display = 'none');
+        });
+    </script>
+</body>
+</html>
